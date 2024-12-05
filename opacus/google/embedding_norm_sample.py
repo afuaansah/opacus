@@ -6,7 +6,6 @@ https://proceedings.neurips.cc/paper_files/paper/2023/file/a45d344b28179c8da7646
 TensorFlow implementation:
 http://google3/third_party/py/tensorflow_privacy/privacy/fast_gradient_clipping/registry_functions/registry_function_utils.py;rcl=564481407
 """
-
 from typing import Dict, List
 
 import torch
