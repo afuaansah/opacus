@@ -16,6 +16,7 @@ import os
 import warnings
 from itertools import chain
 from typing import IO, Any, BinaryIO, Dict, List, Optional, Tuple, Union
+from absl import logging
 
 import torch
 from opacus.accountants import create_accountant
@@ -289,7 +290,7 @@ class PrivacyEngine:
         noise_generator=None,
         grad_sample_mode: str = "hooks",
         **kwargs,
-    ) -> Tuple[GradSampleModule, DPOptimizer, DataLoader]:
+    ):
         """
         Add privacy-related responsibilities to the main PyTorch training objects:
         model, optimizer, and the data loader.
@@ -339,12 +340,16 @@ class PrivacyEngine:
                 details
 
         Returns:
-            Tuple of (model, optimizer, data_loader).
+            Tuple of (model, optimizer, criterion (if grad_sample_mode is
+            "ghost"), data_loader).
 
             Model is a wrapper around the original model that also computes per sample
                 gradients
             Optimizer is a wrapper around the original optimizer that also does
              gradient clipping and noise addition to the gradients
+            Criterion is a wrapper around the original criterion that does two
+                backward pass under the hood. Returned if grad_sample_mode is
+                "ghost".
             DataLoader is a brand new DataLoader object, constructed to behave as
                 equivalent to the original data loader, possibly with updated
                 sampling mechanism. Points to the same dataset object.
@@ -472,17 +477,22 @@ class PrivacyEngine:
                 details
 
         Returns:
-            Tuple of (model, optimizer, data_loader).
+            Tuple of (model, optimizer, criterion, data_loader).
 
             Model is a wrapper around the original model that also computes per sample
                 gradients
             Optimizer is a wrapper around the original optimizer that also does
                 gradient clipping and noise addition to the gradients
+            Criterion is a wrapper around the original criterion that does two
+                backward pass under the hood. Returned if grad_sample_mode is
+                "ghost".
             DataLoader is a brand new DataLoader object, constructed to behave as
                 equivalent to the original data loader, possibly with updated
                 sampling mechanism. Points to the same dataset object.
         """
         sample_rate = 1 / len(data_loader)
+        # same default as in get_noise_multiplier
+        epsilon_tolerance = kwargs.get("epsilon_tolerance", 0.01)
 
         if len(self.accountant) > 0:
             warnings.warn(
@@ -490,20 +500,23 @@ class PrivacyEngine:
                 "already spent. Returned noise_multiplier assumes zero starting point, "
                 "so your overall privacy budget will be higher."
             )
+        noise_multiplier = get_noise_multiplier(
+            target_epsilon=target_epsilon,
+            target_delta=target_delta,
+            sample_rate=sample_rate,
+            epochs=epochs,
+            accountant=self.accountant.mechanism(),
+            epsilon_tolerance=epsilon_tolerance,
+            **kwargs,
+        )
 
+        logging.info("Computed noise_multiplier: %f", noise_multiplier)
         return self.make_private(
             module=module,
             optimizer=optimizer,
             data_loader=data_loader,
             criterion=criterion,
-            noise_multiplier=get_noise_multiplier(
-                target_epsilon=target_epsilon,
-                target_delta=target_delta,
-                sample_rate=sample_rate,
-                epochs=epochs,
-                accountant=self.accountant.mechanism(),
-                **kwargs,
-            ),
+            noise_multiplier=noise_multiplier,
             max_grad_norm=max_grad_norm,
             batch_first=batch_first,
             loss_reduction=loss_reduction,
@@ -578,7 +591,7 @@ class PrivacyEngine:
         module_load_dict_kwargs: Optional[Dict[str, Any]] = None,
         torch_load_kwargs: Optional[Dict[str, Any]] = None,
     ) -> Dict:
-        checkpoint = torch.load(path, **(torch_load_kwargs or {}))
+        checkpoint = torch.load(path, **({"weights_only": False} | torch_load_kwargs or {}))
         module.load_state_dict(
             checkpoint["module_state_dict"], **(module_load_dict_kwargs or {})
         )
