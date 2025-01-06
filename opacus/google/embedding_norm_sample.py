@@ -95,8 +95,6 @@ def compute_embedding_norm_sample(
   grad_values = backprops.to(device)
 
   # Reshape input_ids preserving the batch size as the first dimension
-  print(input_ids)
-  print(input_ids.shape)
   input_ids = input_ids.reshape(input_ids.shape[0], -1)
   input_ids = torch.sort(input_ids, dim=1)[0]
 
