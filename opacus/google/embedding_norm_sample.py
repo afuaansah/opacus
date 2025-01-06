@@ -95,6 +95,7 @@ def compute_embedding_norm_sample(
   grad_values = backprops.to(device)
 
   # Reshape input_ids preserving the batch size as the first dimension
+  inputs_ids = torch.sort(input_ids, dim=1)[0]
   input_ids = input_ids.reshape(input_ids.shape[0], -1)
 
   # Reshape grad_values preserving the embedding dimension as the last dimension
@@ -114,8 +115,8 @@ def compute_embedding_norm_sample(
   paired_indices = torch.cat([row_indices, flattened_indices], dim=1).to(device)
 
   # Get unique paired indices and new index positions for aggregation
-  unique_paired_indices, new_index_positions = torch.unique(
-      paired_indices, dim=0, return_inverse=True, sorted=True)
+  unique_paired_indices, new_index_positions = torch.unique_consecutive(
+      paired_indices, dim=0, return_inverse=True)
 
   # Sum gradients over new index positions and compute squared gradient norms
   num_unique_paired_indices = unique_paired_indices.size(0)
