@@ -113,14 +113,17 @@ def compute_embedding_norm_sample(
   # Compute scale for expanding mapping indices
   scale = torch.numel(grad_values) // torch.numel(mapping)
 
-  # Create additional indices for the expanded mapping
-  additional_indices = torch.arange(grad_values.shape[-1], device=device).view(
-      1, 1, -1
-  )
+  if scale == 1:
+    expanded_mapping = mapping
+  else:
+    # Create additional indices for the expanded mapping
+    additional_indices = torch.arange(
+        grad_values.shape[-1], device=device
+    ).view(1, 1, -1)
 
-  expanded_mapping = (
-      mapping.unsqueeze(-1) * scale + additional_indices
-  ).reshape(mapping.shape[0], -1)
+    expanded_mapping = (
+        mapping.unsqueeze(-1) * scale + additional_indices
+    ).reshape(mapping.shape[0], -1)
 
   # Reshape grad_values to match the expanded mapping
   reshaped_grad_values = grad_values.reshape(expanded_mapping.shape).to(device)
