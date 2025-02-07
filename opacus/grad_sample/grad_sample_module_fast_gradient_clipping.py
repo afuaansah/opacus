@@ -194,8 +194,9 @@ class GradSampleModuleFastGradientClipping(GradSampleModule):
             batch_first=batch_first,
         )
 
-        if self.use_ghost_clipping and type(module) in self.NORM_SAMPLERS:
-            norm_sampler_fn = self.NORM_SAMPLERS[type(module)]
+        if self.use_ghost_clipping and (type(module) in self.NORM_SAMPLERS or module.class_type in self.NORM_SAMPLERS):
+            layer_type = type(module) if type(module) in self.NORM_SAMPLERS else module.class_type
+            norm_sampler_fn = self.NORM_SAMPLERS[layer_type]
             norm_samples = norm_sampler_fn(module, activations, backprops)
 
             for param, ns in norm_samples.items():
