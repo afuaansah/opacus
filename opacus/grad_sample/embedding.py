@@ -18,6 +18,7 @@ from typing import Dict, List
 from opacus.google import embedding_norm_sample
 import torch
 import torch.nn as nn
+from opacus.grad_sample import embedding_norm_sample
 
 from .utils import register_grad_sampler, register_norm_sampler
 
@@ -91,16 +92,16 @@ def compute_embedding_norm_sample(
     activations: List[torch.Tensor],
     backprops: torch.Tensor,
 ) -> Dict[nn.Parameter, torch.Tensor]:
-  """Computes per sample gradient norms for ``nn.Embedding`` layer.
+    """Computes gradient norms for ``nn.Embedding`` layer.
 
-  Args:
-    layer: Layer
-    activations: Activations
-    backprops: Backpropagations
+    Args:
+      layer: Layer
+      activations: Activations
+      backprops: Backpropagations
 
-  Returns:
-    A dictionary of parameter gradients
-  """
-  return embedding_norm_sample.compute_embedding_norm_sample(
-      layer, activations, backprops
-  )
+    Returns:
+      A dictionary of parameter gradients
+    """
+    return embedding_norm_sample.compute_embedding_norm_sample(
+        layer, activations, backprops
+    )
